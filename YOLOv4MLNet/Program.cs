@@ -60,7 +60,7 @@ namespace YOLOv4MLNet
             // save model
             //mlContext.Model.Save(model, predictionEngine.OutputSchema, Path.ChangeExtension(modelPath, "zip"));
 
-            foreach (string imageName in new string[] { "kite.jpg", "dog_cat.jpg", "cars road.jpg", "moto.jpg", "ski.jpg", "ski2.jpg", "ski-bike.jpg" })
+            foreach (string imageName in new string[] { "kite.jpg", "dog_cat.jpg", "cars road.jpg", "ski.jpg", "ski2.jpg" })
             {
                 using (var bitmap = new Bitmap(Image.FromFile(Path.Combine(imageFolder, imageName))))
                 {
