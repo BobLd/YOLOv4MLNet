@@ -35,6 +35,9 @@ namespace YOLOv4MLNet
                     shapeDictionary: new Dictionary<string, int[]>()
                     {
                         { "input_1:0", new[] { 1, 416, 416, 3 } },
+                        { "Identity:0", new[] { 1, 52, 52, 3, 85 } },
+                        { "Identity_1:0", new[] { 1, 26, 26, 3, 85 } },
+                        { "Identity_2:0", new[] { 1, 13, 13, 3, 85 } },
                     },
                     inputColumnNames: new[]
                     {
@@ -54,32 +57,37 @@ namespace YOLOv4MLNet
             // Create prediction engine
             var predictionEngine = mlContext.Model.CreatePredictionEngine<YoloV4BitmapData, YoloV4Prediction>(model);
 
-            string imageName = "kite.jpg";
-            using (var bitmap = new Bitmap(Image.FromFile(Path.Combine(imageFolder, imageName))))
+            // save model
+            //mlContext.Model.Save(model, predictionEngine.OutputSchema, Path.ChangeExtension(modelPath, "zip"));
+
+            foreach (string imageName in new string[] { "kite.jpg" , "dog_cat.jpg", "cars road.jpg" })
             {
-                // predict
-                var predict = predictionEngine.Predict(new YoloV4BitmapData() { Image = bitmap });
-                var results = predict.GetResults(classesNames, 0.5f, 0.8f);
-
-                using (var g = Graphics.FromImage(bitmap))
+                using (var bitmap = new Bitmap(Image.FromFile(Path.Combine(imageFolder, imageName))))
                 {
-                    foreach (var res in results)
-                    {
-                        // draw predictions
-                        var x1 = res.BBox[0];
-                        var y1 = res.BBox[1];
-                        var x2 = res.BBox[2];
-                        var y2 = res.BBox[3];
-                        g.DrawRectangle(Pens.Red, x1, y1, x2 - x1, y2 - y1);
-                        using (var brushes = new SolidBrush(Color.FromArgb(50, Color.Red)))
-                        {
-                            g.FillRectangle(brushes, x1, y1, x2 - x1, y2 - y1);
-                        }
+                    // predict
+                    var predict = predictionEngine.Predict(new YoloV4BitmapData() { Image = bitmap });
+                    var results = predict.GetResults(classesNames, 0.5f, 0.8f);
 
-                        g.DrawString(res.Label + " " + res.Confidence.ToString("0.00"),
-                                     new Font("Arial", 12), Brushes.Blue, new PointF(x1, y1));
+                    using (var g = Graphics.FromImage(bitmap))
+                    {
+                        foreach (var res in results)
+                        {
+                            // draw predictions
+                            var x1 = res.BBox[0];
+                            var y1 = res.BBox[1];
+                            var x2 = res.BBox[2];
+                            var y2 = res.BBox[3];
+                            g.DrawRectangle(Pens.Red, x1, y1, x2 - x1, y2 - y1);
+                            using (var brushes = new SolidBrush(Color.FromArgb(50, Color.Red)))
+                            {
+                                g.FillRectangle(brushes, x1, y1, x2 - x1, y2 - y1);
+                            }
+
+                            g.DrawString(res.Label + " " + res.Confidence.ToString("0.00"),
+                                         new Font("Arial", 12), Brushes.Blue, new PointF(x1, y1));
+                        }
+                        bitmap.Save(Path.Combine(imageOutputFolder, Path.ChangeExtension(imageName, "_processed" + Path.GetExtension(imageName))));
                     }
-                    bitmap.Save(Path.Combine(imageOutputFolder, Path.ChangeExtension(imageName, "_processed" + Path.GetExtension(imageName))));
                 }
             }
         }
