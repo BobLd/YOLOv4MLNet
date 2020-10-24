@@ -106,13 +106,17 @@ namespace YOLOv4MLNet.DataStructures
                             float dw = (inputSize - resizeRatio * org_w) / 2f;
                             float dh = (inputSize - resizeRatio * org_h) / 2f;
 
-                            var orgX1 = 1f * (predX1 - dw) / resizeRatio;
-                            var orgX2 = 1f * (predX2 - dw) / resizeRatio;
-                            var orgY1 = 1f * (predY1 - dh) / resizeRatio;
-                            var orgY2 = 1f * (predY2 - dh) / resizeRatio;
+                            var orgX1 = 1f * (predX1 - dw) / resizeRatio; // left
+                            var orgX2 = 1f * (predX2 - dw) / resizeRatio; // right
+                            var orgY1 = 1f * (predY1 - dh) / resizeRatio; // top
+                            var orgY2 = 1f * (predY2 - dh) / resizeRatio; // bottom
 
                             // (3) clip some boxes that are out of range
-                            // TODO
+                            orgX1 = Math.Max(orgX1, 0);
+                            orgY1 = Math.Max(orgY1, 0);
+                            orgX2 = Math.Min(orgX2, org_w - 1);
+                            orgY2 = Math.Min(orgY2, org_h - 1);
+                            if (orgX1 > orgX2 || orgY1 > orgY2) continue; // invalid_mask
 
                             // (4) discard some invalid boxes
                             // TODO

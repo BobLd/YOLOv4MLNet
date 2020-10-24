@@ -4,6 +4,7 @@
     {
         /// <summary>
         /// x1, y1, x2, y2 in page coordinates.
+        /// <para>left, top, right, bottom.</para>
         /// </summary>
         public float[] BBox { get; }
 
@@ -13,7 +14,7 @@
         public string Label { get; }
 
         /// <summary>
-        /// Category's confidence level.
+        /// Confidence level.
         /// </summary>
         public float Confidence { get; }
 
