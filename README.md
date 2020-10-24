@@ -1,4 +1,4 @@
-# YOLOv4MLNet
+# YOLO v4 in ML.Net
 Use YOLO v4 with ML.Net
 
 # Results
