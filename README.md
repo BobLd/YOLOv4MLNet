@@ -1,6 +1,8 @@
 # YOLO v4 in ML.Net
 Use YOLO v4 with ML.Net
 
+Onnx model available in the onnx/models repos [here](https://github.com/onnx/models/tree/master/vision/object_detection_segmentation/yolov4).
+
 # Results
 ![kite](https://github.com/BobLd/YOLOv4MLNet/blob/master/YOLOv4MLNet/Assets/Output/kite._processed.jpg)
 ![road](https://github.com/BobLd/YOLOv4MLNet/blob/master/YOLOv4MLNet/Assets/Output/cars%20road._processed.jpg)
