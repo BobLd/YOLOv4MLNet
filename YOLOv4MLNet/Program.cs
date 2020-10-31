@@ -12,7 +12,7 @@ namespace YOLOv4MLNet
     {
         // model is available here:
         // https://github.com/onnx/models/tree/master/vision/object_detection_segmentation/yolov4
-        const string modelPath = @"D:\MachineLearning\yolo_models\yolov4.onnx";
+        const string modelPath = @"D:\MachineLearning\Models\yolo_models\yolov4.onnx";
 
         const string imageFolder = @"Assets\Images";
 
@@ -60,7 +60,7 @@ namespace YOLOv4MLNet
             // save model
             //mlContext.Model.Save(model, predictionEngine.OutputSchema, Path.ChangeExtension(modelPath, "zip"));
 
-            foreach (string imageName in new string[] { "kite.jpg", "dog_cat.jpg", "cars road.jpg", "ski.jpg", "ski2.jpg" })
+            foreach (string imageName in new string[] { "kite.jpg", "kite_416.jpg", "dog_cat.jpg", "cars road.jpg", "ski.jpg", "ski2.jpg" })
             {
                 using (var bitmap = new Bitmap(Image.FromFile(Path.Combine(imageFolder, imageName))))
                 {
