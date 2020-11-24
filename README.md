@@ -1,6 +1,8 @@
 # YOLO v4 in ML.Net
 Use YOLO v4 with ML.Net
 
+**See [here](https://github.com/BobLd/YOLOv3MLNet) for YOLO v3 use.**
+
 Onnx model available in the onnx/models repos [here](https://github.com/onnx/models/tree/master/vision/object_detection_segmentation/yolov4).
 
 # Results
