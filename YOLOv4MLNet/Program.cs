@@ -12,7 +12,7 @@ namespace YOLOv4MLNet
     {
         // model is available here:
         // https://github.com/onnx/models/tree/master/vision/object_detection_segmentation/yolov4
-        const string modelPath = @"D:\MachineLearning\Models\yolo_models\yolov4.onnx";
+        const string modelPath = @"D:\MachineLearning\Models\yolo_models\yolov5l.onnx";
 
         const string imageFolder = @"Assets\Images";
 
@@ -29,25 +29,25 @@ namespace YOLOv4MLNet
             // https://github.com/onnx/models/tree/master/vision/object_detection_segmentation/yolov4
 
             // Define scoring pipeline
-            var pipeline = mlContext.Transforms.ResizeImages(inputColumnName: "bitmap", outputColumnName: "input_1:0", imageWidth: 416, imageHeight: 416, resizing: ResizingKind.IsoPad)
-                .Append(mlContext.Transforms.ExtractPixels(outputColumnName: "input_1:0", scaleImage: 1f / 255f, interleavePixelColors: true))
+            var pipeline = mlContext.Transforms.ResizeImages(inputColumnName: "bitmap", outputColumnName: "images", imageWidth: 640, imageHeight: 640, resizing: ResizingKind.IsoPad)
+                .Append(mlContext.Transforms.ExtractPixels(outputColumnName: "images", scaleImage: 1f / 255f, interleavePixelColors: false))
                 .Append(mlContext.Transforms.ApplyOnnxModel(
                     shapeDictionary: new Dictionary<string, int[]>()
                     {
-                        { "input_1:0", new[] { 1, 416, 416, 3 } },
-                        { "Identity:0", new[] { 1, 52, 52, 3, 85 } },
-                        { "Identity_1:0", new[] { 1, 26, 26, 3, 85 } },
-                        { "Identity_2:0", new[] { 1, 13, 13, 3, 85 } },
+                        { "images", new[] { 1, 3, 640, 640 } },
+                        { "output", new[] { 1, 3, 80, 80, 85 } },
+                        { "1313", new[] { 1, 3, 40, 40, 85 } },
+                        { "1333", new[] { 1, 3, 20, 20, 85 } },
                     },
                     inputColumnNames: new[]
                     {
-                        "input_1:0"
+                        "images"
                     },
                     outputColumnNames: new[]
                     {
-                        "Identity:0",
-                        "Identity_1:0",
-                        "Identity_2:0"
+                        "output",
+                        "1313",
+                        "1333"
                     },
                     modelFile: modelPath));
 

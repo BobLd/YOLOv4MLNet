@@ -11,41 +11,41 @@ namespace YOLOv4MLNet.DataStructures
         // https://github.com/hunglc007/tensorflow-yolov4-tflite/blob/master/data/anchors/yolov4_anchors.txt
         static readonly float[][][] ANCHORS = new float[][][]
         {
-            new float[][] { new float[] { 12, 16 }, new float[] { 19, 36 }, new float[] { 40, 28 } },
-            new float[][] { new float[] { 36, 75 }, new float[] { 76, 55 }, new float[] { 72, 146 } },
-            new float[][] { new float[] { 142, 110 }, new float[] { 192, 243 }, new float[] { 459, 401 } }
+            new float[][] { new float[] { 10, 13 }, new float[] { 16, 30 }, new float[] { 33, 23 } },
+            new float[][] { new float[] { 30, 61 }, new float[] { 62, 45 }, new float[] { 59, 119 } },
+            new float[][] { new float[] { 116, 90 }, new float[] { 156, 198 }, new float[] { 373, 326 } }
         };
 
         // https://github.com/hunglc007/tensorflow-yolov4-tflite/blob/9f16748aa3f45ff240608da4bd9b1216a29127f5/core/config.py#L18
-        static readonly float[] STRIDES = new float[] { 8, 16, 32 };
+        static readonly float[] STRIDES = new float[] { 8, 16, 32 }; // 640/80, 640/40, 640/20
 
         // https://github.com/hunglc007/tensorflow-yolov4-tflite/blob/9f16748aa3f45ff240608da4bd9b1216a29127f5/core/config.py#L20
-        static readonly float[] XYSCALE = new float[] { 1.2f, 1.1f, 1.05f };
+        static readonly float[] XYSCALE = new float[] { 1f, 1f, 1f };
 
-        static readonly int[] shapes = new int[] { 52, 26, 13 };
+        static readonly int[] shapes = new int[] { 80, 40, 20 };
 
         const int anchorsCount = 3;
 
         /// <summary>
         /// Identity
         /// </summary>
-        [VectorType(1, 52, 52, 3, 85)]
-        [ColumnName("Identity:0")]
-        public float[] Identity { get; set; }
+        [VectorType(1, 3, 80, 80, 85)]
+        [ColumnName("output")]
+        public float[] Output { get; set; }
 
         /// <summary>
         /// Identity1
         /// </summary>
-        [VectorType(1, 26, 26, 3, 85)]
-        [ColumnName("Identity_1:0")]
-        public float[] Identity1 { get; set; }
+        [VectorType(1, 3, 40, 40, 85)]
+        [ColumnName("1313")]
+        public float[] Output1313 { get; set; }
 
         /// <summary>
         /// Identity2
         /// </summary>
-        [VectorType(1, 13, 13, 3, 85)]
-        [ColumnName("Identity_2:0")]
-        public float[] Identity2 { get; set; }
+        [VectorType(1, 3, 20, 20, 85)]
+        [ColumnName("1333")]
+        public float[] Output1333 { get; set; }
 
         [ColumnName("width")]
         public float ImageWidth { get; set; }
@@ -57,13 +57,12 @@ namespace YOLOv4MLNet.DataStructures
         {
             List<float[]> postProcesssedResults = new List<float[]>();
             int classesCount = categories.Length;
-            var results = new[] { Identity, Identity1, Identity2 };
+            var results = new[] { Output, Output1313, Output1333 };
 
             for (int i = 0; i < results.Length; i++)
             {
                 var pred = results[i];
                 var outputSize = shapes[i];
-
                 for (int boxY = 0; boxY < outputSize; boxY++)
                 {
                     for (int boxX = 0; boxX < outputSize; boxX++)
@@ -71,9 +70,11 @@ namespace YOLOv4MLNet.DataStructures
                         for (int a = 0; a < anchorsCount; a++)
                         {
                             var offset = (boxY * outputSize * (classesCount + 5) * anchorsCount) + (boxX * (classesCount + 5) * anchorsCount) + a * (classesCount + 5);
-                            var predBbox = pred.Skip(offset).Take(classesCount + 5).ToArray();
+                            var predBbox = pred.Skip(offset).Take(classesCount + 5).Select(x => Sigmoid(x)).ToArray(); // y = x[i].sigmoid()
 
-                            // ported from https://github.com/onnx/models/tree/master/vision/object_detection_segmentation/yolov4#postprocessing-steps
+                            // more info at 
+                            // https://github.com/ultralytics/yolov5/issues/343#issuecomment-658021043
+                            // https://github.com/ultralytics/yolov5/blob/a1c8406af3eac3e20d4dd5d327fd6cbd4fbb9752/models/yolo.py#L29-L36
 
                             // postprocess_bbbox()
                             var predXywh = predBbox.Take(4).ToArray();
@@ -85,23 +86,24 @@ namespace YOLOv4MLNet.DataStructures
                             var rawDw = predXywh[2];
                             var rawDh = predXywh[3];
 
-                            float predX = ((Sigmoid(rawDx) * XYSCALE[i]) - 0.5f * (XYSCALE[i] - 1) + boxX) * STRIDES[i];
-                            float predY = ((Sigmoid(rawDy) * XYSCALE[i]) - 0.5f * (XYSCALE[i] - 1) + boxY) * STRIDES[i];
-                            float predW = (float)Math.Exp(rawDw) * ANCHORS[i][a][0];
-                            float predH = (float)Math.Exp(rawDh) * ANCHORS[i][a][1];
+                            float predX = ((rawDx * 2f) - 0.5f + boxX) * STRIDES[i];
+                            float predY = ((rawDy * 2f) - 0.5f + boxY) * STRIDES[i];
+                            float predW = (float)Math.Pow(rawDw * 2, 2) * ANCHORS[i][a][0];
+                            float predH = (float)Math.Pow(rawDh * 2, 2) * ANCHORS[i][a][1];
 
                             // postprocess_boxes
                             // (1) (x, y, w, h) --> (xmin, ymin, xmax, ymax)
-                            float predX1 = predX - predW * 0.5f;
-                            float predY1 = predY - predH * 0.5f;
-                            float predX2 = predX + predW * 0.5f;
-                            float predY2 = predY + predH * 0.5f;
+                            var box = Xywh2xyxy(new float[] { predX, predY, predW, predH });
+                            float predX1 = box[0]; //predX - predW * 0.5f;
+                            float predY1 = box[1]; //predY - predH * 0.5f;
+                            float predX2 = box[2]; //predX + predW * 0.5f;
+                            float predY2 = box[3]; //predY + predH * 0.5f;
 
                             // (2) (xmin, ymin, xmax, ymax) -> (xmin_org, ymin_org, xmax_org, ymax_org)
                             float org_h = ImageHeight;
                             float org_w = ImageWidth;
 
-                            float inputSize = 416f;
+                            float inputSize = 640f;
                             float resizeRatio = Math.Min(inputSize / org_w, inputSize / org_h);
                             float dw = (inputSize - resizeRatio * org_w) / 2f;
                             float dh = (inputSize - resizeRatio * org_h) / 2f;
@@ -160,7 +162,7 @@ namespace YOLOv4MLNet.DataStructures
                     if (float.IsNaN(iou[i])) continue;
                     if (iou[i] > iouThres)
                     {
-                        postProcesssedResults[i] = null;
+                        //postProcesssedResults[i] = null; // deactivated for debugging
                     }
                 }
                 f++;
@@ -199,6 +201,21 @@ namespace YOLOv4MLNet.DataStructures
             var inter = dx * dy;
 
             return inter / (area1 + area2 - inter);
+        }
+
+        /// <summary>
+        /// Convert bounding box format from [x, y, w, h] to [x1, y1, x2, y2]
+        /// <para>Box (center x, center y, width, height) to (x1, y1, x2, y2)</para>
+        /// </summary>
+        public static float[] Xywh2xyxy(float[] bbox)
+        {
+            //https://github.com/BobLd/YOLOv3MLNet/blob/48d691175249c2dbf1fdfb9790c9aec56f9a028f/YOLOv3MLNet/DataStructures/YoloV3Prediction.cs#L159-L167
+            var bboxAdj = new float[4];
+            bboxAdj[0] = bbox[0] - bbox[2] / 2f;
+            bboxAdj[1] = bbox[1] - bbox[3] / 2f;
+            bboxAdj[2] = bbox[0] + bbox[2] / 2f;
+            bboxAdj[3] = bbox[1] + bbox[3] / 2f;
+            return bboxAdj;
         }
     }
 }
