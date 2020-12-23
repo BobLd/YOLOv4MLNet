@@ -8,44 +8,12 @@ namespace YOLOv4MLNet.DataStructures
 {
     public class YoloV4Prediction
     {
-        // https://github.com/hunglc007/tensorflow-yolov4-tflite/blob/master/data/anchors/yolov4_anchors.txt
-        static readonly float[][][] ANCHORS = new float[][][]
-        {
-            new float[][] { new float[] { 10, 13 }, new float[] { 16, 30 }, new float[] { 33, 23 } },
-            new float[][] { new float[] { 30, 61 }, new float[] { 62, 45 }, new float[] { 59, 119 } },
-            new float[][] { new float[] { 116, 90 }, new float[] { 156, 198 }, new float[] { 373, 326 } }
-        };
-
-        // https://github.com/hunglc007/tensorflow-yolov4-tflite/blob/9f16748aa3f45ff240608da4bd9b1216a29127f5/core/config.py#L18
-        static readonly float[] STRIDES = new float[] { 8, 16, 32 }; // 640/80, 640/40, 640/20
-
-        // https://github.com/hunglc007/tensorflow-yolov4-tflite/blob/9f16748aa3f45ff240608da4bd9b1216a29127f5/core/config.py#L20
-        static readonly float[] XYSCALE = new float[] { 1f, 1f, 1f };
-
-        static readonly int[] shapes = new int[] { 80, 40, 20 };
-
-        const int anchorsCount = 3;
-
         /// <summary>
         /// Identity
         /// </summary>
-        [VectorType(1, 3, 80, 80, 85)]
+        [VectorType(1, 25200, 85)]
         [ColumnName("output")]
         public float[] Output { get; set; }
-
-        /// <summary>
-        /// Identity1
-        /// </summary>
-        [VectorType(1, 3, 40, 40, 85)]
-        [ColumnName("1313")]
-        public float[] Output1313 { get; set; }
-
-        /// <summary>
-        /// Identity2
-        /// </summary>
-        [VectorType(1, 3, 20, 20, 85)]
-        [ColumnName("1333")]
-        public float[] Output1333 { get; set; }
 
         [ColumnName("width")]
         public float ImageWidth { get; set; }
@@ -53,97 +21,65 @@ namespace YOLOv4MLNet.DataStructures
         [ColumnName("height")]
         public float ImageHeight { get; set; }
 
-        public IReadOnlyList<YoloV4Result> GetResults(string[] categories, float scoreThres = 0.5f, float iouThres = 0.5f)
+        public IReadOnlyList<YoloV5Result> GetResults(string[] categories, float scoreThres = 0.5f, float iouThres = 0.5f)
         {
-            List<float[]> postProcesssedResults = new List<float[]>();
-            int classesCount = categories.Length;
-            var results = new[] { Output, Output1313, Output1333 };
 
-            for (int i = 0; i < results.Length; i++)
+            // Probabilities + Characteristics
+            int characteristics = categories.Length + 5;
+
+            // Needed info
+            float modelWidth = 640.0F;
+            float modelHeight = 640.0F;
+            float xGain = modelWidth / ImageWidth;
+            float yGain = modelHeight / ImageHeight;
+            float[] results = Output;
+
+            List<float[]> postProcessedResults = new List<float[]>();
+
+            // For every cell of the image, format for NMS
+            for (int i = 0; i < 25200; i++)
             {
-                var pred = results[i];
-                var outputSize = shapes[i];
-                for (int boxY = 0; boxY < outputSize; boxY++)
-                {
-                    for (int boxX = 0; boxX < outputSize; boxX++)
-                    {
-                        for (int a = 0; a < anchorsCount; a++)
-                        {
-                            var offset = (boxY * outputSize * (classesCount + 5) * anchorsCount) + (boxX * (classesCount + 5) * anchorsCount) + a * (classesCount + 5);
-                            var predBbox = pred.Skip(offset).Take(classesCount + 5).Select(x => Sigmoid(x)).ToArray(); // y = x[i].sigmoid()
+                // Get offset in float array
+                int offset = characteristics * i;
 
-                            // more info at 
-                            // https://github.com/ultralytics/yolov5/issues/343#issuecomment-658021043
-                            // https://github.com/ultralytics/yolov5/blob/a1c8406af3eac3e20d4dd5d327fd6cbd4fbb9752/models/yolo.py#L29-L36
+                // Get a prediction cell
+                var predCell = results.Skip(offset).Take(characteristics).ToList();
 
-                            // postprocess_bbbox()
-                            var predXywh = predBbox.Take(4).ToArray();
-                            var predConf = predBbox[4];
-                            var predProb = predBbox.Skip(5).ToArray();
+                // Filter some boxes
+                var objConf = predCell[4];
+                if (objConf <= scoreThres) continue;
 
-                            var rawDx = predXywh[0];
-                            var rawDy = predXywh[1];
-                            var rawDw = predXywh[2];
-                            var rawDh = predXywh[3];
+                // Get corners in original shape
+                var x1 = (predCell[0] - predCell[2] / 2) / xGain; //top left x
+                var y1 = (predCell[1] - predCell[3] / 2) / yGain; //top left y
+                var x2 = (predCell[0] + predCell[2] / 2) / xGain; //bottom right x
+                var y2 = (predCell[1] + predCell[3] / 2) / yGain; //bottom right y
 
-                            float predX = ((rawDx * 2f) - 0.5f + boxX) * STRIDES[i];
-                            float predY = ((rawDy * 2f) - 0.5f + boxY) * STRIDES[i];
-                            float predW = (float)Math.Pow(rawDw * 2, 2) * ANCHORS[i][a][0];
-                            float predH = (float)Math.Pow(rawDh * 2, 2) * ANCHORS[i][a][1];
+                // Get real class scores
+                var classProbs = predCell.Skip(5).Take(categories.Length).ToList();
+                var scores = classProbs.Select(p => p * objConf).ToList();
 
-                            // postprocess_boxes
-                            // (1) (x, y, w, h) --> (xmin, ymin, xmax, ymax)
-                            var box = Xywh2xyxy(new float[] { predX, predY, predW, predH });
-                            float predX1 = box[0]; //predX - predW * 0.5f;
-                            float predY1 = box[1]; //predY - predH * 0.5f;
-                            float predX2 = box[2]; //predX + predW * 0.5f;
-                            float predY2 = box[3]; //predY + predH * 0.5f;
+                // Get best class and index
+                float maxConf = scores.Max();
+                float maxClass = scores.ToList().IndexOf(maxConf);
 
-                            // (2) (xmin, ymin, xmax, ymax) -> (xmin_org, ymin_org, xmax_org, ymax_org)
-                            float org_h = ImageHeight;
-                            float org_w = ImageWidth;
-
-                            float inputSize = 640f;
-                            float resizeRatio = Math.Min(inputSize / org_w, inputSize / org_h);
-                            float dw = (inputSize - resizeRatio * org_w) / 2f;
-                            float dh = (inputSize - resizeRatio * org_h) / 2f;
-
-                            var orgX1 = 1f * (predX1 - dw) / resizeRatio; // left
-                            var orgX2 = 1f * (predX2 - dw) / resizeRatio; // right
-                            var orgY1 = 1f * (predY1 - dh) / resizeRatio; // top
-                            var orgY2 = 1f * (predY2 - dh) / resizeRatio; // bottom
-
-                            // (3) clip some boxes that are out of range
-                            orgX1 = Math.Max(orgX1, 0);
-                            orgY1 = Math.Max(orgY1, 0);
-                            orgX2 = Math.Min(orgX2, org_w - 1);
-                            orgY2 = Math.Min(orgY2, org_h - 1);
-                            if (orgX1 > orgX2 || orgY1 > orgY2) continue; // invalid_mask
-
-                            // (4) discard some invalid boxes
-                            // TODO
-
-                            // (5) discard some boxes with low scores
-                            var scores = predProb.Select(p => p * predConf).ToList();
-
-                            float scoreMaxCat = scores.Max();
-                            if (scoreMaxCat > scoreThres)
-                            {
-                                postProcesssedResults.Add(new float[] { orgX1, orgY1, orgX2, orgY2, scoreMaxCat, scores.IndexOf(scoreMaxCat) });
-                            }
-                        }
-                    }
-                }
+                postProcessedResults.Add(new[] { x1, y1, x2, y2, maxConf, maxClass });
             }
 
-            // Non-maximum Suppression
-            postProcesssedResults = postProcesssedResults.OrderByDescending(x => x[4]).ToList(); // sort by confidence
-            List<YoloV4Result> resultsNms = new List<YoloV4Result>();
+            var resultsNMS = ApplyNMS(postProcessedResults, categories, iouThres);
+
+            return resultsNMS;
+        }
+
+        private List<YoloV5Result> ApplyNMS(List<float[]> postProcessedResults, string[] categories, float iouThres = 0.5f)
+        {
+            postProcessedResults = postProcessedResults.OrderByDescending(x => x[4]).ToList(); // sort by confidence
+            List<YoloV5Result> resultsNms = new List<YoloV5Result>();
 
             int f = 0;
-            while (f < postProcesssedResults.Count)
+            while (f < postProcessedResults.Count)
             {
-                var res = postProcesssedResults[f];
+                var res = postProcessedResults[f];
                 if (res == null)
                 {
                     f++;
@@ -153,30 +89,22 @@ namespace YOLOv4MLNet.DataStructures
                 var conf = res[4];
                 string label = categories[(int)res[5]];
 
-                resultsNms.Add(new YoloV4Result(res.Take(4).ToArray(), label, conf));
-                postProcesssedResults[f] = null;
+                resultsNms.Add(new YoloV5Result(res.Take(4).ToArray(), label, conf));
+                postProcessedResults[f] = null;
 
-                var iou = postProcesssedResults.Select(bbox => bbox == null ? float.NaN : BoxIoU(res, bbox)).ToList();
+                var iou = postProcessedResults.Select(bbox => bbox == null ? float.NaN : BoxIoU(res, bbox)).ToList();
                 for (int i = 0; i < iou.Count; i++)
                 {
                     if (float.IsNaN(iou[i])) continue;
                     if (iou[i] > iouThres)
                     {
-                        //postProcesssedResults[i] = null; // deactivated for debugging
+                        postProcessedResults[i] = null;
                     }
                 }
                 f++;
             }
 
             return resultsNms;
-        }
-
-        /// <summary>
-        /// expit = https://docs.scipy.org/doc/scipy/reference/generated/scipy.special.expit.html
-        /// </summary>
-        private static float Sigmoid(float x)
-        {
-            return 1f / (1f + (float)Math.Exp(-x));
         }
 
         /// <summary>
@@ -201,21 +129,6 @@ namespace YOLOv4MLNet.DataStructures
             var inter = dx * dy;
 
             return inter / (area1 + area2 - inter);
-        }
-
-        /// <summary>
-        /// Convert bounding box format from [x, y, w, h] to [x1, y1, x2, y2]
-        /// <para>Box (center x, center y, width, height) to (x1, y1, x2, y2)</para>
-        /// </summary>
-        public static float[] Xywh2xyxy(float[] bbox)
-        {
-            //https://github.com/BobLd/YOLOv3MLNet/blob/48d691175249c2dbf1fdfb9790c9aec56f9a028f/YOLOv3MLNet/DataStructures/YoloV3Prediction.cs#L159-L167
-            var bboxAdj = new float[4];
-            bboxAdj[0] = bbox[0] - bbox[2] / 2f;
-            bboxAdj[1] = bbox[1] - bbox[3] / 2f;
-            bboxAdj[2] = bbox[0] + bbox[2] / 2f;
-            bboxAdj[3] = bbox[1] + bbox[3] / 2f;
-            return bboxAdj;
         }
     }
 }

@@ -1,6 +1,6 @@
 ﻿namespace YOLOv4MLNet.DataStructures
 {
-    public class YoloV4Result
+    public class YoloV5Result
     {
         /// <summary>
         /// x1, y1, x2, y2 in page coordinates.
@@ -18,7 +18,7 @@
         /// </summary>
         public float Confidence { get; }
 
-        public YoloV4Result(float[] bbox, string label, float confidence)
+        public YoloV5Result(float[] bbox, string label, float confidence)
         {
             BBox = bbox;
             Label = label;

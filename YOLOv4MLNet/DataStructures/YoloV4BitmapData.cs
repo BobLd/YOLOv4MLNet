@@ -7,7 +7,7 @@ namespace YOLOv4MLNet.DataStructures
     public class YoloV4BitmapData
     {
         [ColumnName("bitmap")]
-        [ImageType(416, 416)]
+        [ImageType(640, 640)]
         public Bitmap Image { get; set; }
 
         [ColumnName("width")]
