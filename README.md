@@ -1,7 +1,15 @@
+**See [here](https://github.com/BobLd/YOLOv3MLNet) for YOLO v3 use.**
+
+# YOLO v5 in ML.Net
+Use YOLO v5 with ML.Net
+
+Thanks to [raulsf6](https://github.com/raulsf6), [deanbennettdeveloper](https://github.com/deanbennettdeveloper) and [keesschollaart81](https://github.com/keesschollaart81)
+- See the discussion in the [Tips for modifying this for YoloV5](https://github.com/BobLd/YOLOv4MLNet/issues/2) issue.
+- See the [yolo-v5-incl](https://github.com/BobLd/YOLOv4MLNet/tree/yolo-v5-incl) branch
+- See keesschollaart81's [gist](https://gist.github.com/keesschollaart81/83de609f0852670656290fe0180da318)
+
 # YOLO v4 in ML.Net
 Use YOLO v4 with ML.Net
-
-**See [here](https://github.com/BobLd/YOLOv3MLNet) for YOLO v3 use.**
 
 Onnx model available in the onnx/models repos [here](https://github.com/onnx/models/tree/master/vision/object_detection_segmentation/yolov4).
 
