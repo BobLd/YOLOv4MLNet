@@ -51,7 +51,7 @@ namespace YOLOv4MLNet
                         "Identity_1:0",
                         "Identity_2:0"
                     },
-                    modelFile: modelPath));
+                    modelFile: modelPath, recursionLimit: 100));
 
             // Fit on empty list to obtain input data schema
             var model = pipeline.Fit(mlContext.Data.LoadFromEnumerable(new List<YoloV4BitmapData>()));
