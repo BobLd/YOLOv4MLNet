@@ -1,5 +1,7 @@
 ﻿using Microsoft.ML;
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using YOLOv4MLNet.DataStructures;
@@ -59,8 +61,9 @@ namespace YOLOv4MLNet
 
             // save model
             //mlContext.Model.Save(model, predictionEngine.OutputSchema, Path.ChangeExtension(modelPath, "zip"));
-
-            foreach (string imageName in new string[] { "kite.jpg", "kite_416.jpg", "dog_cat.jpg", "cars road.jpg", "ski.jpg", "ski2.jpg" })
+            var sw = new Stopwatch();
+            sw.Start();
+            foreach (string imageName in new string[] { "kite.jpg", "dog_cat.jpg", "cars road.jpg", "ski.jpg", "ski2.jpg" })
             {
                 using (var bitmap = new Bitmap(Image.FromFile(Path.Combine(imageFolder, imageName))))
                 {
@@ -90,6 +93,8 @@ namespace YOLOv4MLNet
                     }
                 }
             }
+            sw.Stop();
+            Console.WriteLine($"Done in {sw.ElapsedMilliseconds}ms.");
         }
     }
 }
